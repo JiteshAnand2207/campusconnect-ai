@@ -17,11 +17,13 @@ import DashboardEvents from "./pages/dashboard/DashboardEvents";
 import DashboardProblems from "./pages/dashboard/DashboardProblems";
 import DashboardSolutions from "./pages/dashboard/DashboardSolutions";
 import DashboardTickets from "./pages/dashboard/DashboardTickets";
+
 import OrganizerPanel from "./pages/dashboard/OrganizerPanel";
 import ModerationPanel from "./pages/dashboard/ModerationPanel";
 import AdminPanel from "./pages/dashboard/AdminPanel";
 import CreateEvent from "./pages/dashboard/CreateEvent";
 import AdminEvents from "./pages/dashboard/AdminEvents";
+import VerifyTicket from "./pages/dashboard/VerifyTicket";
 
 const App = () => {
   return (
@@ -29,13 +31,17 @@ const App = () => {
       <Navbar />
 
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/events" element={<Events />} />
         <Route path="/events/:id" element={<EventDetails />} />
         <Route path="/problems" element={<Problems />} />
+
+        {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* Protected Dashboard Routes */}
         <Route
           path="/dashboard"
           element={
@@ -65,6 +71,15 @@ const App = () => {
             element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <DashboardTickets />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="verify-ticket"
+            element={
+              <ProtectedRoute allowedRoles={["organizer", "admin"]}>
+                <VerifyTicket />
               </ProtectedRoute>
             }
           />

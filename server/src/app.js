@@ -3,7 +3,7 @@ import eventRoutes from "./routes/event.routes.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
+import registrationRoutes from "./routes/registration.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
@@ -42,6 +42,7 @@ app.get("/", (req, res) => {
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/registrations", registrationRoutes);
 app.use(errorMiddleware);
 
 export default app;

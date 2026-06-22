@@ -2,8 +2,36 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getEventById } from "../api/eventApi";
 import StatusBadge from "../components/event/StatusBadge";
+import { useAuth } from "../context/AuthContext";
+import { registerForEvent } from "../api/registrationApi";
 
 const EventDetails = () => {
+  const handleRegister = async () => {
+  try {
+    setRegisterLoading(true);
+    setRegisterMessage("");
+
+    if (!isAuthenticated) {
+      setRegisterMessage("Please login as a student to register.");
+      return;
+    }
+
+    if (user?.role !== "student") {
+      setRegisterMessage("Only students can register for events.");
+      return;
+    }
+
+    await registerForEvent(event._id);
+    setRegisterMessage("Registered successfully. Your ticket is available in dashboard.");
+    fetchEvent();
+  } catch (err) {
+    setRegisterMessage(err.response?.data?.message || "Registration failed");
+  } finally {
+    setRegisterLoading(false);
+  }
+};const { user, isAuthenticated } = useAuth();
+const [registerLoading, setRegisterLoading] = useState(false);
+const [registerMessage, setRegisterMessage] = useState("");
   const { id } = useParams();
 
   const [event, setEvent] = useState(null);
@@ -111,9 +139,19 @@ const EventDetails = () => {
             </div>
           )}
 
-          <button className="mt-8 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white">
-            Register for event
-          </button>
+          <button
+  onClick={handleRegister}
+  disabled={registerLoading || event.status !== "approved"}
+  className="mt-8 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+>
+  {registerLoading ? "Registering..." : "Register for event"}
+</button>
+
+{registerMessage && (
+  <div className="mt-4 rounded-xl bg-slate-100 p-4 text-sm font-semibold text-slate-700">
+    {registerMessage}
+  </div>
+)}
 
           <p className="mt-3 text-sm text-slate-500">
             Registration will be connected in the QR ticket phase.

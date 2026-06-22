@@ -1,97 +1,239 @@
-import { NavLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-const baseLinks = [
-  {
-  label: "Create Event",
-  path: "/dashboard/events/create",
-  roles: ["organizer", "admin"],
-},
-{
-  label: "Approve Events",
-  path: "/dashboard/admin/events",
-  roles: ["admin"],
-},
-  {
-    label: "Overview",
-    path: "/dashboard",
-    roles: ["student", "organizer", "moderator", "admin"],
-  },
-  {
-    label: "Events",
-    path: "/dashboard/events",
-    roles: ["student", "organizer", "moderator", "admin"],
-  },
-  {
-    label: "Problems",
-    path: "/dashboard/problems",
-    roles: ["student", "organizer", "moderator", "admin"],
-  },
-  {
-    label: "Solutions",
-    path: "/dashboard/solutions",
-    roles: ["student", "organizer", "moderator", "admin"],
-  },
-  {
-    label: "Tickets",
-    path: "/dashboard/tickets",
-    roles: ["student"],
-  },
-  {
-    label: "Organizer Panel",
-    path: "/dashboard/organizer",
-    roles: ["organizer", "admin"],
-  },
-  {
-    label: "Moderation",
-    path: "/dashboard/moderation",
-    roles: ["moderator", "admin"],
-  },
-  {
-    label: "Admin Panel",
-    path: "/dashboard/admin",
-    roles: ["admin"],
-  },
-];
+const roleMessages = {
+  student:
+    "Track your registered events, QR tickets, reported problems, and shared solutions.",
+  organizer:
+    "Create events, manage registrations, send announcements, and track participation.",
+  moderator:
+    "Review public problems, manage reports, and help resolve campus issues.",
+  admin:
+    "Manage users, approve events, monitor problems, and control platform operations.",
+};
 
-const DashboardSidebar = () => {
+const Dashboard = () => {
   const { user } = useAuth();
 
-  const visibleLinks = baseLinks.filter((link) =>
-    link.roles.includes(user?.role)
-  );
+  const cards = [
+    {
+      title: "Events",
+      value: "0",
+      description:
+        user?.role === "organizer"
+          ? "Events created by you will appear here."
+          : "Events connected to your account will appear here.",
+    },
+    {
+      title: "Tickets",
+      value: "0",
+      description:
+        user?.role === "student"
+          ? "Your registered event tickets are available in My Tickets."
+          : "Ticket verification is available for organizers and admins.",
+    },
+    {
+      title: "Problems",
+      value: "0",
+      description: "Campus problems reported or assigned to you.",
+    },
+  ];
 
   return (
-    <aside className="hidden w-64 shrink-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:block">
-      <div className="mb-5 rounded-2xl bg-indigo-50 p-4">
-        <p className="text-sm font-semibold text-indigo-700">
-          {user?.name}
+    <div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">
+          {user?.role} dashboard
         </p>
-        <p className="mt-1 text-xs uppercase tracking-wide text-indigo-500">
-          {user?.role}
+
+        <h1 className="mt-2 text-3xl font-bold text-slate-950">
+          Welcome, {user?.name}
+        </h1>
+
+        <p className="mt-3 max-w-3xl text-slate-600">
+          {roleMessages[user?.role] || roleMessages.student}
         </p>
+
+        <QuickActions role={user?.role} />
       </div>
 
-      <nav className="space-y-2">
-        {visibleLinks.map((link) => (
-          <NavLink
-            key={link.path}
-            to={link.path}
-            end={link.path === "/dashboard"}
-            className={({ isActive }) =>
-              `block rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                isActive
-                  ? "bg-indigo-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-              }`
-            }
+      <div className="mt-6 grid gap-5 md:grid-cols-3">
+        {cards.map((card) => (
+          <div
+            key={card.title}
+            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
           >
-            {link.label}
-          </NavLink>
+            <p className="text-sm font-semibold text-slate-500">
+              {card.title}
+            </p>
+
+            <p className="mt-3 text-4xl font-extrabold text-slate-950">
+              {card.value}
+            </p>
+
+            <p className="mt-2 text-sm text-slate-500">{card.description}</p>
+          </div>
         ))}
-      </nav>
-    </aside>
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">
+          Current role permissions
+        </h2>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {user?.role === "student" && (
+            <>
+              <Permission text="Browse and register for events" />
+              <Permission text="View tickets in My Tickets section" />
+              <Permission text="Raise public and private problems" />
+              <Permission text="Post solutions on public problems" />
+            </>
+          )}
+
+          {user?.role === "organizer" && (
+            <>
+              <Permission text="Create and manage events" />
+              <Permission text="View event registrations" />
+              <Permission text="Verify student tickets" />
+              <Permission text="Send event announcements" />
+            </>
+          )}
+
+          {user?.role === "moderator" && (
+            <>
+              <Permission text="Review public campus problems" />
+              <Permission text="Moderate solutions and comments" />
+              <Permission text="Handle assigned private problems" />
+              <Permission text="Mark issues as resolved" />
+            </>
+          )}
+
+          {user?.role === "admin" && (
+            <>
+              <Permission text="Manage all users" />
+              <Permission text="Approve or reject events" />
+              <Permission text="Verify tickets" />
+              <Permission text="Access platform analytics" />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default DashboardSidebar;
+const QuickActions = ({ role }) => {
+  if (role === "student") {
+    return (
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          to="/events"
+          className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+        >
+          Browse Events
+        </Link>
+
+        <Link
+          to="/dashboard/tickets"
+          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+        >
+          My Tickets
+        </Link>
+
+        <Link
+          to="/problems"
+          className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          View Problems
+        </Link>
+      </div>
+    );
+  }
+
+  if (role === "organizer") {
+    return (
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          to="/dashboard/events/create"
+          className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+        >
+          Create Event
+        </Link>
+
+        <Link
+          to="/dashboard/events"
+          className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          My Events
+        </Link>
+
+        <Link
+          to="/dashboard/verify-ticket"
+          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+        >
+          Verify Ticket
+        </Link>
+      </div>
+    );
+  }
+
+  if (role === "admin") {
+    return (
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          to="/dashboard/admin/events"
+          className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+        >
+          Approve Events
+        </Link>
+
+        <Link
+          to="/dashboard/events/create"
+          className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          Create Event
+        </Link>
+
+        <Link
+          to="/dashboard/verify-ticket"
+          className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+        >
+          Verify Ticket
+        </Link>
+      </div>
+    );
+  }
+
+  if (role === "moderator") {
+    return (
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          to="/dashboard/moderation"
+          className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+        >
+          Moderation Panel
+        </Link>
+
+        <Link
+          to="/dashboard/problems"
+          className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          Review Problems
+        </Link>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+const Permission = ({ text }) => {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+      {text}
+    </div>
+  );
+};
+
+export default Dashboard;
