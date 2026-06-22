@@ -1,4 +1,5 @@
 import "dotenv/config";
+import eventRoutes from "./routes/event.routes.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -40,7 +41,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
-
+app.use("/api/events", eventRoutes);
 app.use(errorMiddleware);
 
 export default app;
