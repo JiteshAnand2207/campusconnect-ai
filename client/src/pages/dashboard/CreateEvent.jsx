@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createEvent } from "../../api/eventApi";
+import { createEvent as createEventApi } from "../../api/eventApi";
+import FileUploader from "../../components/common/FileUploader";
+
+const categories = [
+  "technical",
+  "cultural",
+  "sports",
+  "workshop",
+  "seminar",
+  "hackathon",
+  "club",
+  "other",
+];
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -14,8 +26,10 @@ const CreateEvent = () => {
     startDate: "",
     endDate: "",
     registrationDeadline: "",
-    capacity: 50,
+    capacity: "",
     tags: "",
+    bannerImage: "",
+    brochureUrl: "",
   });
 
   const [error, setError] = useState("");
@@ -26,7 +40,7 @@ const CreateEvent = () => {
 
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "capacity" ? Number(value) : value,
+      [name]: value,
     }));
   };
 
@@ -38,14 +52,25 @@ const CreateEvent = () => {
       setError("");
 
       const payload = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        department: formData.department,
+        venue: formData.venue,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        registrationDeadline: formData.registrationDeadline || undefined,
+        capacity: Number(formData.capacity),
+        bannerImage: formData.bannerImage,
+        brochureUrl: formData.brochureUrl,
         tags: formData.tags
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
       };
 
-      await createEvent(payload);
+      await createEventApi(payload);
+
       navigate("/dashboard/events");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create event");
@@ -61,12 +86,12 @@ const CreateEvent = () => {
       </p>
 
       <h1 className="mt-2 text-3xl font-bold text-slate-950">
-        Create new event
+        Create a new event
       </h1>
 
       <p className="mt-3 text-slate-600">
-        Organizer-created events will be sent for admin approval before becoming
-        public.
+        Submit an event for admin approval. Once approved, students will be able
+        to view and register for it.
       </p>
 
       {error && (
@@ -77,24 +102,27 @@ const CreateEvent = () => {
 
       <form onSubmit={handleSubmit} className="mt-8 grid gap-5">
         <FormInput
-          label="Title"
+          label="Event title"
           name="title"
           value={formData.title}
           onChange={handleChange}
-          placeholder="CodeSprint Hackathon"
+          placeholder="AI Workshop 2026"
+          required
         />
 
         <div>
           <label className="text-sm font-semibold text-slate-700">
             Description
           </label>
+
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
             rows="5"
+            placeholder="Explain what this event is about..."
+            required
             className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
-            placeholder="Describe the event..."
           />
         </div>
 
@@ -103,20 +131,18 @@ const CreateEvent = () => {
             <label className="text-sm font-semibold text-slate-700">
               Category
             </label>
+
             <select
               name="category"
               value={formData.category}
               onChange={handleChange}
               className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"
             >
-              <option value="technical">Technical</option>
-              <option value="cultural">Cultural</option>
-              <option value="sports">Sports</option>
-              <option value="workshop">Workshop</option>
-              <option value="seminar">Seminar</option>
-              <option value="hackathon">Hackathon</option>
-              <option value="club">Club</option>
-              <option value="other">Other</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -125,7 +151,7 @@ const CreateEvent = () => {
             name="department"
             value={formData.department}
             onChange={handleChange}
-            placeholder="IIoT or All"
+            placeholder="All / CSE / ECE / IIoT"
           />
         </div>
 
@@ -135,42 +161,47 @@ const CreateEvent = () => {
           value={formData.venue}
           onChange={handleChange}
           placeholder="Seminar Hall"
+          required
         />
 
         <div className="grid gap-5 md:grid-cols-2">
           <FormInput
             label="Start date and time"
-            name="startDate"
             type="datetime-local"
+            name="startDate"
             value={formData.startDate}
             onChange={handleChange}
+            required
           />
 
           <FormInput
             label="End date and time"
-            name="endDate"
             type="datetime-local"
+            name="endDate"
             value={formData.endDate}
             onChange={handleChange}
+            required
           />
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
           <FormInput
             label="Registration deadline"
-            name="registrationDeadline"
             type="datetime-local"
+            name="registrationDeadline"
             value={formData.registrationDeadline}
             onChange={handleChange}
           />
 
           <FormInput
             label="Capacity"
-            name="capacity"
             type="number"
-            min="1"
+            name="capacity"
             value={formData.capacity}
             onChange={handleChange}
+            placeholder="100"
+            min="1"
+            required
           />
         </div>
 
@@ -179,14 +210,40 @@ const CreateEvent = () => {
           name="tags"
           value={formData.tags}
           onChange={handleChange}
-          placeholder="coding, webdev, team"
+          placeholder="ai, workshop, coding"
         />
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <FileUploader
+            label="Event banner image"
+            accept="image/*"
+            currentUrl={formData.bannerImage}
+            onUploaded={(file) =>
+              setFormData((prev) => ({
+                ...prev,
+                bannerImage: file.url,
+              }))
+            }
+          />
+
+          <FileUploader
+            label="Event brochure PDF or image"
+            accept="image/*,application/pdf"
+            currentUrl={formData.brochureUrl}
+            onUploaded={(file) =>
+              setFormData((prev) => ({
+                ...prev,
+                brochureUrl: file.url,
+              }))
+            }
+          />
+        </div>
 
         <button
           disabled={loading}
-          className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+          className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Creating event..." : "Create event"}
+          {loading ? "Creating event..." : "Create Event"}
         </button>
       </form>
     </div>
@@ -197,6 +254,7 @@ const FormInput = ({ label, ...props }) => {
   return (
     <div>
       <label className="text-sm font-semibold text-slate-700">{label}</label>
+
       <input
         {...props}
         className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500"

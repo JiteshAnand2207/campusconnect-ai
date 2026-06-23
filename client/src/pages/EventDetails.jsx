@@ -108,6 +108,24 @@ const [registerMessage, setRegisterMessage] = useState("");
           <h1 className="mt-5 text-4xl font-extrabold text-slate-950">
             {event.title}
           </h1>
+          {event.bannerImage && (
+  <img
+    src={`http://localhost:5000${event.bannerImage}`}
+    alt={event.title}
+    className="mt-6 h-80 w-full rounded-3xl object-cover"
+  />
+)}
+
+{event.brochureUrl && (
+  <a
+    href={`http://localhost:5000${event.brochureUrl}`}
+    target="_blank"
+    rel="noreferrer"
+    className="mt-6 inline-flex rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white"
+  >
+    View brochure
+  </a>
+)}
 
           <p className="mt-5 leading-8 text-slate-600">{event.description}</p>
 

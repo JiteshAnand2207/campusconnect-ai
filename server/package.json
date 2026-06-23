@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.5.1",
     "mongoose": "^9.7.1",
+    "multer": "^2.2.0",
     "openai": "^6.44.0",
     "redis": "^6.0.0"
   },

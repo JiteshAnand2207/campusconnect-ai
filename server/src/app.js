@@ -12,7 +12,7 @@ import solutionRoutes from "./routes/solution.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 const app = express();
-
+import uploadRoutes from "./routes/upload.routes.js";
 const allowedOrigins = [
   process.env.CLIENT_URL,
   "http://localhost:5173",
@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
     message: "CampusConnect AI backend is running",
   });
 });
-
+app.use("/uploads", express.static("uploads"));
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
@@ -50,6 +50,7 @@ app.use("/api/problems", problemRoutes);
 app.use("/api/solutions", solutionRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use(errorMiddleware);
 
 export default app;

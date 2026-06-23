@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  getProblemById,
-  toggleProblemUpvote,
-} from "../api/problemApi";
+import { getProblemById, toggleProblemUpvote } from "../api/problemApi";
 import {
   acceptSolution,
   createSolution,
@@ -13,6 +10,8 @@ import {
 import ProblemStatusBadge from "../components/problem/ProblemStatusBadge";
 import VisibilityBadge from "../components/problem/VisibilityBadge";
 import { useAuth } from "../context/AuthContext";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const ProblemDetails = () => {
   const { id } = useParams();
@@ -26,6 +25,11 @@ const ProblemDetails = () => {
   const [solutionLoading, setSolutionLoading] = useState(false);
   const [error, setError] = useState("");
   const [solutionError, setSolutionError] = useState("");
+
+  const getFullFileUrl = (url) => {
+    if (!url) return "";
+    return url.startsWith("http") ? url : `${API_URL}${url}`;
+  };
 
   const fetchProblem = async () => {
     try {
@@ -51,8 +55,12 @@ const ProblemDetails = () => {
   }, [id]);
 
   const handleProblemUpvote = async () => {
-    await toggleProblemUpvote(id);
-    fetchProblem();
+    try {
+      await toggleProblemUpvote(id);
+      fetchProblem();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to upvote problem");
+    }
   };
 
   const handlePostSolution = async (e) => {
@@ -76,13 +84,25 @@ const ProblemDetails = () => {
   };
 
   const handleAcceptSolution = async (solutionId) => {
-    await acceptSolution(solutionId);
-    fetchProblem();
+    try {
+      await acceptSolution(solutionId);
+      fetchProblem();
+    } catch (err) {
+      setSolutionError(
+        err.response?.data?.message || "Failed to accept solution"
+      );
+    }
   };
 
   const handleSolutionUpvote = async (solutionId) => {
-    await toggleSolutionUpvote(solutionId);
-    fetchProblem();
+    try {
+      await toggleSolutionUpvote(solutionId);
+      fetchProblem();
+    } catch (err) {
+      setSolutionError(
+        err.response?.data?.message || "Failed to upvote solution"
+      );
+    }
   };
 
   if (loading) {
@@ -98,6 +118,7 @@ const ProblemDetails = () => {
       <main className="min-h-[calc(100vh-73px)] bg-slate-50 px-4 py-10">
         <section className="mx-auto max-w-4xl rounded-3xl border border-red-100 bg-white p-8 shadow-sm">
           <p className="font-semibold text-red-600">{error}</p>
+
           <Link
             to="/problems"
             className="mt-5 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
@@ -147,7 +168,7 @@ const ProblemDetails = () => {
           {problem.visibility === "public" && (
             <button
               onClick={handleProblemUpvote}
-              className="mt-6 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white"
+              className="mt-6 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700"
             >
               Upvote Problem
             </button>
@@ -156,6 +177,7 @@ const ProblemDetails = () => {
           {problem.tags?.length > 0 && (
             <div className="mt-8">
               <h2 className="font-bold text-slate-950">Tags</h2>
+
               <div className="mt-3 flex flex-wrap gap-2">
                 {problem.tags.map((tag) => (
                   <span
@@ -168,6 +190,26 @@ const ProblemDetails = () => {
               </div>
             </div>
           )}
+
+          {problem.attachments?.length > 0 && (
+            <div className="mt-8">
+              <h2 className="font-bold text-slate-950">Attachments</h2>
+
+              <div className="mt-3 flex flex-wrap gap-3">
+                {problem.attachments.map((attachment, index) => (
+                  <a
+                    key={`${attachment}-${index}`}
+                    href={getFullFileUrl(attachment)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  >
+                    View attachment {index + 1}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
 
         {problem.visibility === "private" && (
@@ -175,6 +217,7 @@ const ProblemDetails = () => {
             <h2 className="text-xl font-bold text-slate-950">
               Private problem
             </h2>
+
             <p className="mt-3 text-slate-600">
               This problem is private. Only the owner, admin, or moderator can
               view it. Community solutions are disabled for private problems.
@@ -206,7 +249,7 @@ const ProblemDetails = () => {
 
                 <button
                   disabled={solutionLoading}
-                  className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+                  className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
                 >
                   {solutionLoading ? "Posting..." : "Post Solution"}
                 </button>
@@ -239,6 +282,7 @@ const ProblemDetails = () => {
                         <p className="font-semibold text-slate-950">
                           {solution.postedBy?.name}
                         </p>
+
                         <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
                           {solution.postedBy?.role}
                         </p>
@@ -255,10 +299,26 @@ const ProblemDetails = () => {
                       {solution.description}
                     </p>
 
+                    {solution.attachments?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        {solution.attachments.map((attachment, index) => (
+                          <a
+                            key={`${attachment}-${index}`}
+                            href={getFullFileUrl(attachment)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                          >
+                            Solution attachment {index + 1}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button
                         onClick={() => handleSolutionUpvote(solution._id)}
-                        className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                        className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
                       >
                         Upvote ({solution.upvotes?.length || 0})
                       </button>
@@ -266,7 +326,7 @@ const ProblemDetails = () => {
                       {canAcceptSolution && !solution.isAccepted && (
                         <button
                           onClick={() => handleAcceptSolution(solution._id)}
-                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                         >
                           Accept Solution
                         </button>
@@ -289,6 +349,7 @@ const Info = ({ label, value }) => {
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
         {label}
       </p>
+
       <p className="mt-2 font-semibold text-slate-950">{value || "N/A"}</p>
     </div>
   );

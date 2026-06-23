@@ -5,3 +5,4 @@ client/.env
 dist/
 build/
 .DS_Store
+server/uploads/

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createProblem } from "../../api/problemApi";
+import FileUploader from "../../components/common/FileUploader";
 
 const categories = [
   "hostel",
@@ -23,6 +24,7 @@ const CreateProblem = () => {
     category: "campus",
     visibility: "public",
     tags: "",
+    attachments: [],
   });
 
   const [error, setError] = useState("");
@@ -50,6 +52,7 @@ const CreateProblem = () => {
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
+          attachments: formData.attachments,
       };
 
       await createProblem(payload);
@@ -147,7 +150,17 @@ const CreateProblem = () => {
           onChange={handleChange}
           placeholder="wifi, library, network"
         />
-
+        <FileUploader
+  label="Problem attachment image or PDF"
+  accept="image/*,application/pdf"
+  currentUrl={formData.attachments[0]}
+  onUploaded={(file) =>
+    setFormData((prev) => ({
+      ...prev,
+      attachments: [file.url],
+    }))
+  }
+/>
         <button
           disabled={loading}
           className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
