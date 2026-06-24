@@ -1,213 +1,140 @@
-import { Document } from "@langchain/core/documents";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
-
 import Event from "../models/event.model.js";
 import Problem from "../models/problem.model.js";
-import Solution from "../models/solution.model.js";
 import { getOpenAIClient } from "../config/openai.js";
 
-const buildCampusDocuments = async (user) => {
-  const documents = [];
+const formatDate = (date) => {
+  if (!date) return "Not available";
 
-  const events = await Event.find({ status: "approved" })
-    .populate("createdBy", "name role department")
-    .sort({ startDate: 1 })
-    .limit(50);
-
-  events.forEach((event) => {
-    documents.push(
-      new Document({
-        pageContent: `
-Type: Event
-Title: ${event.title}
-Description: ${event.description}
-Category: ${event.category}
-Department: ${event.department}
-Venue: ${event.venue}
-Start Date: ${event.startDate}
-End Date: ${event.endDate}
-Capacity: ${event.capacity}
-Registered Count: ${event.registeredCount}
-Created By: ${event.createdBy?.name || "Unknown"}
-`,
-        metadata: {
-          type: "event",
-          id: event._id.toString(),
-          title: event.title,
-          link: `/events/${event._id}`,
-        },
-      })
-    );
+  return new Date(date).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
   });
-
-  const problemQuery = {
-    $or: [{ visibility: "public" }],
-  };
-
-  if (user?._id) {
-    problemQuery.$or.push({ postedBy: user._id });
-  }
-
-  const problems = await Problem.find(problemQuery)
-    .populate("postedBy", "name role department year")
-    .populate("acceptedSolution")
-    .sort({ createdAt: -1 })
-    .limit(80);
-
-  const problemIds = problems.map((problem) => problem._id);
-
-  const solutions = await Solution.find({
-    problem: { $in: problemIds },
-  })
-    .populate("postedBy", "name role department year")
-    .sort({ isAccepted: -1, createdAt: -1 })
-    .limit(120);
-
-  const solutionsByProblem = solutions.reduce((acc, solution) => {
-    const problemId = solution.problem.toString();
-
-    if (!acc[problemId]) {
-      acc[problemId] = [];
-    }
-
-    acc[problemId].push(solution);
-    return acc;
-  }, {});
-
-  problems.forEach((problem) => {
-    const relatedSolutions = solutionsByProblem[problem._id.toString()] || [];
-
-    const solutionText = relatedSolutions
-      .map(
-        (solution, index) =>
-          `Solution ${index + 1}: ${solution.description} Posted by: ${
-            solution.postedBy?.name || "Unknown"
-          } Accepted: ${solution.isAccepted ? "Yes" : "No"}`
-      )
-      .join("\n");
-
-    documents.push(
-      new Document({
-        pageContent: `
-Type: Problem
-Title: ${problem.title}
-Description: ${problem.description}
-Category: ${problem.category}
-Visibility: ${problem.visibility}
-Status: ${problem.status}
-Posted By: ${problem.postedBy?.name || "Unknown"}
-Upvotes: ${problem.upvotes?.length || 0}
-Solutions:
-${solutionText || "No solutions yet"}
-`,
-        metadata: {
-          type: "problem",
-          id: problem._id.toString(),
-          title: problem.title,
-          link: `/problems/${problem._id}`,
-        },
-      })
-    );
-  });
-
-  return documents;
 };
 
-const retrieveCampusContext = async (question, user) => {
-  const documents = await buildCampusDocuments(user);
+const getCampusContext = async () => {
+  const [events, problems] = await Promise.all([
+    Event.find({})
+      .select("title category venue startDate endDate status capacity registeredCount department")
+      .sort({ startDate: 1 })
+      .limit(12)
+      .lean(),
 
-  if (documents.length === 0) {
-    return {
-      context: "No campus data is available yet.",
-      sources: [],
-    };
-  }
+    Problem.find({})
+      .select("title category location status priority description createdAt")
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean(),
+  ]);
 
-  const embeddings = new OpenAIEmbeddings({
-    model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  const eventContext =
+    events.length > 0
+      ? events
+          .map((event, index) => {
+            return `${index + 1}. ${event.title}
+Category: ${event.category || "N/A"}
+Venue: ${event.venue || "N/A"}
+Starts: ${formatDate(event.startDate)}
+Ends: ${formatDate(event.endDate)}
+Status: ${event.status || "N/A"}
+Department: ${event.department || "All"}
+Seats: ${event.registeredCount || 0}/${event.capacity || 0}`;
+          })
+          .join("\n\n")
+      : "No events found in database.";
 
-  const vectorStore = await MemoryVectorStore.fromDocuments(
-    documents,
-    embeddings
-  );
-
-  const relevantDocs = await vectorStore.similaritySearch(question, 5);
-
-  const context = relevantDocs
-    .map((doc, index) => {
-      return `
-Source ${index + 1}
-Type: ${doc.metadata.type}
-Title: ${doc.metadata.title}
-Link: ${doc.metadata.link}
-Content:
-${doc.pageContent}
-`;
-    })
-    .join("\n\n");
-
-  const sources = relevantDocs.map((doc) => ({
-    type: doc.metadata.type,
-    title: doc.metadata.title,
-    link: doc.metadata.link,
-  }));
+  const problemContext =
+    problems.length > 0
+      ? problems
+          .map((problem, index) => {
+            return `${index + 1}. ${problem.title}
+Category: ${problem.category || "N/A"}
+Location: ${problem.location || "N/A"}
+Priority: ${problem.priority || "N/A"}
+Status: ${problem.status || "N/A"}
+Description: ${problem.description || "N/A"}`;
+          })
+          .join("\n\n")
+      : "No problems found in database.";
 
   return {
-    context,
-    sources,
+    eventContext,
+    problemContext,
   };
+};
+
+const getSystemPrompt = ({ user, eventContext, problemContext }) => {
+  return `
+You are CampusConnect AI, the built-in assistant for a college event management and campus problem reporting website.
+
+Current user:
+Name: ${user?.name || "Unknown"}
+Email: ${user?.email || "Unknown"}
+Role: ${user?.role || "guest"}
+Department: ${user?.department || "Unknown"}
+Year: ${user?.year || "Unknown"}
+
+Platform features:
+1. Students can browse approved events.
+2. Students can register for approved events.
+3. Students can see QR tickets in Dashboard > My Tickets.
+4. Organizers can create events.
+5. Admins approve or reject events.
+6. Organizers and admins can verify student ticket codes.
+7. Students can report campus problems.
+8. Admins and moderators can manage problem reports.
+9. Notifications inform users about registrations, approvals, rejections, and ticket verification.
+10. The app has dashboards based on role: student, organizer, admin, moderator.
+
+Important routes:
+- Events page: /events
+- Student tickets: /dashboard/tickets
+- Create event: /dashboard/events/create
+- Verify ticket: /dashboard/verify-ticket
+- Problems page: /problems
+- Create problem: /dashboard/problems/create
+- Admin approval page: /dashboard/admin/events
+- AI assistant page: /dashboard/ai
+
+Current events from database:
+${eventContext}
+
+Current problems from database:
+${problemContext}
+
+Rules:
+- Answer in a helpful, simple, student-friendly way.
+- If the user asks how to use the website, give step-by-step instructions.
+- If the user asks about current events, use the event context above.
+- If the user asks about current problems, use the problem context above.
+- Do not invent event names, ticket codes, users, registrations, or database records.
+- If information is not available, say that it is not available in the current database context.
+- Keep answers concise unless the user asks for detail.
+`;
 };
 
 export const askCampusAI = async ({ question, user }) => {
-  const { context, sources } = await retrieveCampusContext(question, user);
-
   const openai = getOpenAIClient();
+  const { eventContext, problemContext } = await getCampusContext();
 
   const response = await openai.responses.create({
-    model: process.env.OPENAI_MODEL,
-    input: [
-      {
-        role: "system",
-        content: `
-You are CampusConnect AI, an assistant for a college event and campus problem management platform.
-
-Rules:
-1. Answer only using the provided campus context when the question is about platform data.
-2. If the context does not contain the answer, clearly say that the platform does not have enough data yet.
-3. Keep answers helpful, practical, and student-friendly.
-4. Mention useful links when available.
-5. Do not reveal private problem data unless it belongs to the current user or is included in the provided context.
-6. Do not invent event dates, venues, registrations, or problem statuses.
-`,
-      },
-      {
-        role: "user",
-        content: `
-Current user:
-Name: ${user?.name}
-Role: ${user?.role}
-Department: ${user?.department || "Not provided"}
-Year: ${user?.year || "Not provided"}
-
-Campus context:
-${context}
-
-Question:
-${question}
-`,
-      },
-    ],
+    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    instructions: getSystemPrompt({
+      user,
+      eventContext,
+      problemContext,
+    }),
+    input: question,
+    temperature: 0.3,
+    max_output_tokens: 700,
   });
 
-  const answer =
-    response.output_text ||
-    "I could not generate an answer right now. Please try again.";
-
   return {
-    answer,
-    sources,
+    answer:
+      response.output_text ||
+      "I could not generate an answer right now. Please try again.",
+    sources: [
+      "CampusConnect AI database context",
+      "CampusConnect AI workflow rules",
+    ],
   };
 };

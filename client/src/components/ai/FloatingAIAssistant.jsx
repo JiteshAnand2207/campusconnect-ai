@@ -1,17 +1,18 @@
 import { useState } from "react";
-import api from "../../api/axios";
 import { Link } from "react-router-dom";
+import { askCampusAI } from "../../api/aiApi";
+
 const FloatingAIAssistant = () => {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const getAnswerText = (response) => {
+  const getAnswerText = (payload) => {
     return (
-      response?.data?.data?.answer ||
-      response?.data?.answer ||
-      response?.data?.message ||
+      payload?.data?.answer ||
+      payload?.answer ||
+      payload?.message ||
       "I am here to help you explore CampusConnect AI."
     );
   };
@@ -25,13 +26,9 @@ const FloatingAIAssistant = () => {
     try {
       setLoading(true);
 
-      const response = await api.post("/ai/ask", {
-        question: cleanQuestion,
-        message: cleanQuestion,
-        prompt: cleanQuestion,
-      });
+      const payload = await askCampusAI(cleanQuestion);
 
-      setAnswer(getAnswerText(response));
+      setAnswer(getAnswerText(payload));
       setQuestion("");
     } catch (error) {
       setAnswer(
@@ -59,8 +56,8 @@ const FloatingAIAssistant = () => {
           </div>
 
           <p className="cc-ai-intro">
-            Ask about events, problems, tickets, dashboards, or how to use the
-            platform.
+            Ask about events, problems, QR tickets, dashboards, or how to use
+            the platform.
           </p>
 
           {answer && <div className="cc-ai-answer">{answer}</div>}
@@ -78,8 +75,8 @@ const FloatingAIAssistant = () => {
           </form>
 
           <Link to="/dashboard/ai" className="cc-ai-full-link">
-  Open full AI Assistant
-</Link>
+            Open full AI Assistant
+          </Link>
         </div>
       )}
 

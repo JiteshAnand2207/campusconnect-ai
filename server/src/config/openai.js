@@ -4,9 +4,7 @@ let openaiClient = null;
 
 export const getOpenAIClient = () => {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error(
-      "OPENAI_API_KEY is missing. Add it in server/.env before using AI features."
-    );
+    throw new Error("OPENAI_API_KEY is missing");
   }
 
   if (!openaiClient) {

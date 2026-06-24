@@ -1,21 +1,22 @@
 import { useState } from "react";
-import api from "../../api/axios";
+import { askCampusAI } from "../../api/aiApi";
 
 const AIAssistant = () => {
   const [messages, setMessages] = useState([
     {
       from: "ai",
-      text: "Hi, I am your CampusConnect AI assistant. Ask me about events, problems, tickets, dashboards, or how to use this platform.",
+      text: "Hi, I am your CampusConnect AI assistant. Ask me about events, problems, QR tickets, dashboards, or how to use this platform.",
     },
   ]);
+
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const getAnswerText = (response) => {
+  const getAnswerText = (payload) => {
     return (
-      response?.data?.data?.answer ||
-      response?.data?.answer ||
-      response?.data?.message ||
+      payload?.data?.answer ||
+      payload?.answer ||
+      payload?.message ||
       "I am here to help you use CampusConnect AI."
     );
   };
@@ -32,15 +33,11 @@ const AIAssistant = () => {
     try {
       setLoading(true);
 
-      const response = await api.post("/ai/ask", {
-        question: cleanQuestion,
-        message: cleanQuestion,
-        prompt: cleanQuestion,
-      });
+      const payload = await askCampusAI(cleanQuestion);
 
       setMessages((prev) => [
         ...prev,
-        { from: "ai", text: getAnswerText(response) },
+        { from: "ai", text: getAnswerText(payload) },
       ]);
     } catch (error) {
       setMessages((prev) => [
@@ -58,9 +55,11 @@ const AIAssistant = () => {
   };
 
   const suggestions = [
+    "What events are available right now?",
     "How do I register for an event?",
+    "Where can I see my QR ticket?",
+    "How can an organizer verify tickets?",
     "How can I report a campus problem?",
-    "What can organizers do?",
     "Explain this website quickly.",
   ];
 
@@ -70,8 +69,8 @@ const AIAssistant = () => {
         <span>AI Assistant</span>
         <h1>Ask CampusConnect AI</h1>
         <p>
-          A smooth chat area for quick help about events, problem reports,
-          tickets, dashboards, and platform workflow.
+          Ask about events, problem reports, QR tickets, dashboards, approvals,
+          and platform workflow.
         </p>
       </section>
 
@@ -95,11 +94,7 @@ const AIAssistant = () => {
 
         <div className="cc-ai-suggestions">
           {suggestions.map((item) => (
-            <button
-              type="button"
-              key={item}
-              onClick={() => setQuestion(item)}
-            >
+            <button type="button" key={item} onClick={() => setQuestion(item)}>
               {item}
             </button>
           ))}
@@ -111,6 +106,7 @@ const AIAssistant = () => {
             onChange={(event) => setQuestion(event.target.value)}
             placeholder="Ask something about CampusConnect AI..."
           />
+
           <button type="submit" disabled={loading}>
             {loading ? "Sending..." : "Send"}
           </button>
