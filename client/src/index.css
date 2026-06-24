@@ -2387,3 +2387,27 @@ form button {
 .cc-loading-card p {
   color: rgba(247, 244, 255, 0.68);
 }
+.cc-create-event-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 1.4rem;
+  padding: 0.95rem 1.45rem;
+  border-radius: 999px;
+  color: white;
+  font-weight: 900;
+  text-decoration: none;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  box-shadow: 0 18px 45px rgba(236, 72, 153, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.cc-create-event-btn:hover {
+  transform: translateY(-2px);
+}
+
+.cc-create-event-btn.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}

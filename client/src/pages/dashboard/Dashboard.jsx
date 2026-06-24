@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Dashboard = () => {
@@ -13,26 +14,62 @@ const Dashboard = () => {
       description: "Find upcoming college events and register instantly.",
       href: "/events",
       icon: "🎫",
+      roles: ["student", "organizer", "admin", "moderator"],
+    },
+    {
+      title: "Create Event",
+      description: "Add a new event with poster, venue, date, and capacity.",
+      href: "/dashboard/events/create",
+      icon: "🎪",
+      roles: ["organizer", "admin"],
+    },
+    {
+      title: "Manage Events",
+      description: "View created events and track approval status.",
+      href: "/dashboard/events",
+      icon: "📋",
+      roles: ["organizer", "admin"],
     },
     {
       title: "Report Problem",
       description: "Raise campus issues and track their status.",
-      href: "/problems",
+      href: "/dashboard/problems/create",
       icon: "🛠️",
+      roles: ["student", "organizer", "admin", "moderator"],
+    },
+    {
+      title: "Manage Problems",
+      description: "Review campus issues and update progress.",
+      href: "/dashboard/problems",
+      icon: "🧩",
+      roles: ["admin", "moderator"],
+    },
+    {
+      title: "Admin Panel",
+      description: "Approve events and manage platform activity.",
+      href: "/dashboard/admin",
+      icon: "🛡️",
+      roles: ["admin"],
     },
     {
       title: "AI Assistant",
       description: "Ask questions about the platform and campus workflows.",
       href: "/dashboard/ai",
       icon: "🤖",
+      roles: ["student", "organizer", "admin", "moderator"],
     },
     {
       title: "Notifications",
       description: "Check latest updates, approvals, and alerts.",
       href: "/notifications",
       icon: "🔔",
+      roles: ["student", "organizer", "admin", "moderator"],
     },
   ];
+
+  const visibleActions = quickActions.filter((action) =>
+    action.roles.includes(role)
+  );
 
   const roleActions = {
     student: [
@@ -124,14 +161,18 @@ const Dashboard = () => {
           </div>
 
           <div className="cc-action-grid">
-            {quickActions.map((action) => (
-              <a href={action.href} className="cc-action-card" key={action.title}>
+            {visibleActions.map((action) => (
+              <Link
+                to={action.href}
+                className="cc-action-card"
+                key={action.title}
+              >
                 <div className="cc-action-icon">{action.icon}</div>
                 <div>
                   <h3>{action.title}</h3>
                   <p>{action.description}</p>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -165,11 +206,11 @@ const Dashboard = () => {
         </article>
 
         <article className="cc-dashboard-panel">
-          <span className="cc-dashboard-kicker">Next Suggested Step</span>
-          <h2>Keep improving the interface.</h2>
+          <span className="cc-dashboard-kicker">Demo Setup</span>
+          <h2>Create realistic data before recording.</h2>
           <p>
-            Continue polishing event detail pages, problem cards, ticket UI, and
-            admin panels so the complete website feels consistent.
+            Add events, posters, registrations, tickets, problems, and solutions
+            first. During the final demo, create only one or two new items live.
           </p>
         </article>
       </section>

@@ -8,6 +8,20 @@ import {
 
 const AuthContext = createContext(null);
 
+const extractUser = (payload) => {
+  return payload?.data?.user || payload?.user || payload?.data || payload || null;
+};
+
+const extractToken = (payload) => {
+  return (
+    payload?.data?.accessToken ||
+    payload?.data?.token ||
+    payload?.accessToken ||
+    payload?.token ||
+    null
+  );
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -16,8 +30,11 @@ export const AuthProvider = ({ children }) => {
   const loadCurrentUser = async () => {
     try {
       setAuthLoading(true);
-      const response = await getCurrentUser();
-      setUser(response.data);
+
+      const payload = await getCurrentUser();
+      const currentUser = extractUser(payload);
+
+      setUser(currentUser);
       setAuthError("");
     } catch (error) {
       setUser(null);
@@ -31,30 +48,57 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const register = async (formData) => {
-    const response = await registerUser(formData);
-    setUser(response.data.user);
-    return response;
+    const payload = await registerUser(formData);
+    const registeredUser = extractUser(payload);
+    const token = extractToken(payload);
+
+    if (token) {
+      localStorage.setItem("accessToken", token);
+    }
+
+    setUser(registeredUser);
+    setAuthError("");
+
+    return payload;
   };
 
   const login = async (formData) => {
-    const response = await loginUser(formData);
-    setUser(response.data.user);
-    return response;
+    const payload = await loginUser(formData);
+    const loggedInUser = extractUser(payload);
+    const token = extractToken(payload);
+
+    console.log("LOGIN PAYLOAD:", payload);
+    console.log("LOGIN TOKEN:", token);
+
+    if (token) {
+      localStorage.setItem("accessToken", token);
+    }
+
+    setUser(loggedInUser);
+    setAuthError("");
+
+    return payload;
   };
 
   const logout = async () => {
-    await logoutUser();
-    setUser(null);
+    try {
+      await logoutUser();
+    } finally {
+      localStorage.removeItem("accessToken");
+      setUser(null);
+    }
   };
 
   const value = {
     user,
     authLoading,
+    loading: authLoading,
     authError,
     setAuthError,
     register,
     login,
     logout,
+    reloadUser: loadCurrentUser,
     isAuthenticated: Boolean(user),
   };
 

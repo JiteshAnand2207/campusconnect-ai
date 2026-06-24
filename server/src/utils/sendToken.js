@@ -1,24 +1,25 @@
 import ApiResponse from "./apiResponse.js";
 
 const sendToken = (user, statusCode, res, message) => {
-  const token = user.generateAccessToken();
+  const accessToken = user.generateAccessToken();
 
   const cookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-  maxAge: 24 * 60 * 60 * 1000,
-};
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  };
 
   return res
     .status(statusCode)
-    .cookie("accessToken", token, cookieOptions)
+    .cookie("accessToken", accessToken, cookieOptions)
     .json(
       new ApiResponse(
         statusCode,
         {
           user,
-          token,
+          accessToken,
+          token: accessToken,
         },
         message
       )

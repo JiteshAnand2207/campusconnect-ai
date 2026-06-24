@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
 import EventCard from "../components/event/EventCard";
 import { getEvents } from "../api/eventApi";
+import { useAuth } from "../context/AuthContext";
 
 const categories = [
   "",
@@ -15,6 +18,8 @@ const categories = [
 ];
 
 const Events = () => {
+  const { user } = useAuth();
+
   const [events, setEvents] = useState([]);
   const [filters, setFilters] = useState({
     search: "",
@@ -22,6 +27,8 @@ const Events = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const canCreateEvent = user?.role === "organizer" || user?.role === "admin";
 
   const fetchEvents = async () => {
     try {
@@ -58,14 +65,24 @@ const Events = () => {
             Discover events
           </p>
 
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">
-            College events
-          </h1>
+          <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-950">
+                College events
+              </h1>
 
-          <p className="mt-3 max-w-3xl text-slate-600">
-            Browse approved college events, workshops, hackathons, club events,
-            sports activities, and seminars.
-          </p>
+              <p className="mt-3 max-w-3xl text-slate-600">
+                Browse approved college events, workshops, hackathons, club
+                events, sports activities, and seminars.
+              </p>
+            </div>
+
+            {canCreateEvent && (
+              <Link to="/dashboard/events/create" className="cc-create-event-btn">
+                + Create Event
+              </Link>
+            )}
+          </div>
 
           <form
             onSubmit={handleSubmit}
@@ -120,6 +137,15 @@ const Events = () => {
             <p className="mt-2 text-slate-600">
               Approved events will appear here after admin approval.
             </p>
+
+            {canCreateEvent && (
+              <Link
+                to="/dashboard/events/create"
+                className="cc-create-event-btn mx-auto"
+              >
+                Create first event
+              </Link>
+            )}
           </div>
         )}
 
