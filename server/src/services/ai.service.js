@@ -1,6 +1,6 @@
 import Event from "../models/event.model.js";
 import Problem from "../models/problem.model.js";
-import { getOpenAIClient } from "../config/openai.js";
+import { getGeminiClient } from "../config/gemini.js";
 
 const formatDate = (date) => {
   if (!date) return "Not available";
@@ -14,7 +14,9 @@ const formatDate = (date) => {
 const getCampusContext = async () => {
   const [events, problems] = await Promise.all([
     Event.find({})
-      .select("title category venue startDate endDate status capacity registeredCount department")
+      .select(
+        "title category venue startDate endDate status capacity registeredCount department"
+      )
       .sort({ startDate: 1 })
       .limit(12)
       .lean(),
@@ -62,7 +64,7 @@ Description: ${problem.description || "N/A"}`;
   };
 };
 
-const getSystemPrompt = ({ user, eventContext, problemContext }) => {
+const buildPrompt = ({ question, user, eventContext, problemContext }) => {
   return `
 You are CampusConnect AI, the built-in assistant for a college event management and campus problem reporting website.
 
@@ -109,32 +111,37 @@ Rules:
 - Do not invent event names, ticket codes, users, registrations, or database records.
 - If information is not available, say that it is not available in the current database context.
 - Keep answers concise unless the user asks for detail.
+
+User question:
+${question}
 `;
 };
 
 export const askCampusAI = async ({ question, user }) => {
-  const openai = getOpenAIClient();
+  const ai = getGeminiClient();
+
   const { eventContext, problemContext } = await getCampusContext();
 
-  const response = await openai.responses.create({
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-    instructions: getSystemPrompt({
-      user,
-      eventContext,
-      problemContext,
-    }),
-    input: question,
-    temperature: 0.3,
-    max_output_tokens: 700,
+  const prompt = buildPrompt({
+    question,
+    user,
+    eventContext,
+    problemContext,
+  });
+
+  const interaction = await ai.interactions.create({
+    model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+    input: prompt,
   });
 
   return {
     answer:
-      response.output_text ||
+      interaction.output_text ||
       "I could not generate an answer right now. Please try again.",
     sources: [
       "CampusConnect AI database context",
       "CampusConnect AI workflow rules",
+      "Gemini API",
     ],
   };
 };
