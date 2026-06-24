@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   cancelRegistration,
   getMyRegistrations,
@@ -8,15 +8,16 @@ import {
 const DashboardTickets = () => {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState("");
   const [error, setError] = useState("");
 
-  const fetchRegistrations = async () => {
+  const fetchTickets = async () => {
     try {
       setLoading(true);
       setError("");
 
       const response = await getMyRegistrations();
-      setRegistrations(response.data);
+      setRegistrations(response.data || []);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch tickets");
     } finally {
@@ -25,7 +26,7 @@ const DashboardTickets = () => {
   };
 
   useEffect(() => {
-    fetchRegistrations();
+    fetchTickets();
   }, []);
 
   const handleCancel = async (registrationId) => {
@@ -35,158 +36,169 @@ const DashboardTickets = () => {
 
     if (!confirmCancel) return;
 
-    await cancelRegistration(registrationId);
-    fetchRegistrations();
+    try {
+      setActionLoading(registrationId);
+      setError("");
+
+      await cancelRegistration(registrationId);
+      await fetchTickets();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to cancel registration");
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "Date not available";
+
+    return new Date(date).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
   };
 
   return (
-    <div>
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">
-          Tickets
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-950">
-          My event tickets
-        </h1>
-
-        <p className="mt-3 text-slate-600">
-          Your registered events, ticket codes, and QR tickets appear here.
-        </p>
-      </div>
-
-      {loading && (
-        <p className="mt-6 text-center font-semibold text-slate-600">
-          Loading tickets...
-        </p>
-      )}
-
-      {error && (
-        <div className="mt-6 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-600">
-          {error}
-        </div>
-      )}
-
-      {!loading && registrations.length === 0 && (
-        <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">No tickets yet</h2>
-          <p className="mt-2 text-slate-600">
-            Register for an event to generate your first ticket.
+    <main className="min-h-[calc(100vh-73px)] bg-slate-50 px-4 py-10">
+      <section className="mx-auto max-w-6xl">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">
+            Student tickets
           </p>
-        </div>
-      )}
 
-      <div className="mt-6 grid gap-5">
-        {registrations.map((registration) => (
-          <TicketCard
-            key={registration._id}
-            registration={registration}
-            onCancel={handleCancel}
-          />
-        ))}
-      </div>
-    </div>
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">
+            My Tickets
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-slate-600">
+            All your event registrations and ticket codes will appear here.
+            Show the ticket code at entry for verification.
+          </p>
+
+          <Link
+            to="/events"
+            className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          >
+            Browse Events
+          </Link>
+        </div>
+
+        {error && (
+          <div className="mt-6 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <p className="mt-8 text-center font-semibold text-slate-600">
+            Loading tickets...
+          </p>
+        ) : registrations.length === 0 ? (
+          <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h2 className="text-xl font-bold text-slate-950">
+              No tickets yet
+            </h2>
+
+            <p className="mt-2 text-slate-600">
+              Register for an approved event and your ticket will appear here.
+            </p>
+
+            <Link
+              to="/events"
+              className="mt-6 inline-flex rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              Explore Events
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            {registrations.map((registration) => {
+              const event = registration.event;
+
+              return (
+                <article
+                  key={registration._id}
+                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                >
+                  <div className="bg-slate-950 p-6 text-white">
+                    <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">
+                      CampusConnect AI Ticket
+                    </p>
+
+                    <h2 className="mt-3 text-2xl font-extrabold">
+                      {event?.title || "Event"}
+                    </h2>
+
+                    <div className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase">
+                      {registration.status}
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="grid gap-4">
+                      <Info label="Category" value={event?.category || "N/A"} />
+                      <Info label="Venue" value={event?.venue || "N/A"} />
+                      <Info
+                        label="Starts"
+                        value={formatDate(event?.startDate)}
+                      />
+                      <Info label="Ends" value={formatDate(event?.endDate)} />
+                    </div>
+
+                    <div className="mt-6 rounded-2xl border border-dashed border-indigo-300 bg-indigo-50 p-5 text-center">
+                      <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+                        Ticket Code
+                      </p>
+
+                      <p className="mt-3 break-all font-mono text-2xl font-black text-slate-950">
+                        {registration.ticketCode}
+                      </p>
+
+                      <p className="mt-3 text-xs font-semibold text-slate-500">
+                        Organizer or admin can verify this code from ticket
+                        verification.
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <Link
+                        to={`/events/${event?._id}`}
+                        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                      >
+                        View Event
+                      </Link>
+
+                      {registration.status === "registered" && (
+                        <button
+                          type="button"
+                          disabled={actionLoading === registration._id}
+                          onClick={() => handleCancel(registration._id)}
+                          className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {actionLoading === registration._id
+                            ? "Cancelling..."
+                            : "Cancel Ticket"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </main>
   );
 };
 
-const TicketCard = ({ registration, onCancel }) => {
-  const qrRef = useRef(null);
-
-  const qrPayload = registration.ticketCode;
-
-  const handleDownloadQR = () => {
-    const canvas = qrRef.current?.querySelector("canvas");
-
-    if (!canvas) return;
-
-    const pngUrl = canvas
-      .toDataURL("image/png")
-      .replace("image/png", "image/octet-stream");
-
-    const downloadLink = document.createElement("a");
-    downloadLink.href = pngUrl;
-    downloadLink.download = `${registration.ticketCode}.png`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  };
-
-  const eventDate = registration.event?.startDate
-    ? new Date(registration.event.startDate).toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "Date not available";
-
+const Info = ({ label, value }) => {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="grid gap-6 lg:grid-cols-[1fr_220px]">
-        <div>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-950">
-                {registration.event?.title}
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-600">
-                {registration.event?.venue}
-              </p>
-
-              <p className="mt-2 text-sm text-slate-500">{eventDate}</p>
-            </div>
-
-            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase text-indigo-600">
-              {registration.status}
-            </span>
-          </div>
-
-          <div className="mt-5 rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Ticket Code
-            </p>
-
-            <p className="mt-2 break-all text-2xl font-extrabold text-slate-950">
-              {registration.ticketCode}
-            </p>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Show this QR code or ticket code at event check-in.
-            </p>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              onClick={handleDownloadQR}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Download QR
-            </button>
-
-            {registration.status === "registered" && (
-              <button
-                onClick={() => onCancel(registration._id)}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Cancel registration
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center rounded-3xl bg-slate-50 p-5">
-          <div ref={qrRef} className="rounded-2xl bg-white p-4">
-            <QRCodeCanvas
-              value={qrPayload}
-              size={160}
-              includeMargin={true}
-            />
-          </div>
-
-          <p className="mt-3 text-center text-xs font-medium text-slate-500">
-            QR contains your ticket code.
-          </p>
-        </div>
-      </div>
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 font-semibold text-slate-950">{value}</p>
     </div>
   );
 };

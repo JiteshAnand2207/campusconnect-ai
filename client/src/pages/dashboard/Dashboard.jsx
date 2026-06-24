@@ -17,6 +17,13 @@ const Dashboard = () => {
       roles: ["student", "organizer", "admin", "moderator"],
     },
     {
+  title: "My Tickets",
+  description: "View your event registrations and ticket codes.",
+  href: "/dashboard/tickets",
+  icon: "🎟️",
+  roles: ["student"],
+},
+    {
       title: "Create Event",
       description: "Add a new event with poster, venue, date, and capacity.",
       href: "/dashboard/events/create",

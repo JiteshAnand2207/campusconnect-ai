@@ -1,3 +1,4 @@
+import DashboardTickets from "./pages/dashboard/DashboardTickets";
 import { Route, Routes } from "react-router-dom";
 
 import Navbar from "./components/layout/Navbar";
@@ -48,6 +49,14 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+  path="/dashboard/tickets"
+  element={
+    <ProtectedRoute>
+      <DashboardTickets />
+    </ProtectedRoute>
+  }
+/>
 
         {/* Event dashboard */}
         <Route
