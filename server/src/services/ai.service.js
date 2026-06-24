@@ -2,6 +2,15 @@ import Event from "../models/event.model.js";
 import Problem from "../models/problem.model.js";
 import { getGeminiClient } from "../config/gemini.js";
 
+const withTimeout = (promise, ms = 25000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini request timed out")), ms)
+    ),
+  ]);
+};
+
 const formatDate = (date) => {
   if (!date) return "Not available";
 
@@ -18,13 +27,13 @@ const getCampusContext = async () => {
         "title category venue startDate endDate status capacity registeredCount department"
       )
       .sort({ startDate: 1 })
-      .limit(12)
+      .limit(8)
       .lean(),
 
     Problem.find({})
       .select("title category location status priority description createdAt")
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(6)
       .lean(),
   ]);
 
@@ -36,9 +45,7 @@ const getCampusContext = async () => {
 Category: ${event.category || "N/A"}
 Venue: ${event.venue || "N/A"}
 Starts: ${formatDate(event.startDate)}
-Ends: ${formatDate(event.endDate)}
 Status: ${event.status || "N/A"}
-Department: ${event.department || "All"}
 Seats: ${event.registeredCount || 0}/${event.capacity || 0}`;
           })
           .join("\n\n")
@@ -52,8 +59,7 @@ Seats: ${event.registeredCount || 0}/${event.capacity || 0}`;
 Category: ${problem.category || "N/A"}
 Location: ${problem.location || "N/A"}
 Priority: ${problem.priority || "N/A"}
-Status: ${problem.status || "N/A"}
-Description: ${problem.description || "N/A"}`;
+Status: ${problem.status || "N/A"}`;
           })
           .join("\n\n")
       : "No problems found in database.";
@@ -66,36 +72,24 @@ Description: ${problem.description || "N/A"}`;
 
 const buildPrompt = ({ question, user, eventContext, problemContext }) => {
   return `
-You are CampusConnect AI, the built-in assistant for a college event management and campus problem reporting website.
+You are CampusConnect AI, the assistant for a college event management and campus problem reporting website.
 
 Current user:
 Name: ${user?.name || "Unknown"}
-Email: ${user?.email || "Unknown"}
 Role: ${user?.role || "guest"}
 Department: ${user?.department || "Unknown"}
 Year: ${user?.year || "Unknown"}
 
 Platform features:
-1. Students can browse approved events.
-2. Students can register for approved events.
-3. Students can see QR tickets in Dashboard > My Tickets.
-4. Organizers can create events.
-5. Admins approve or reject events.
-6. Organizers and admins can verify student ticket codes.
-7. Students can report campus problems.
-8. Admins and moderators can manage problem reports.
-9. Notifications inform users about registrations, approvals, rejections, and ticket verification.
-10. The app has dashboards based on role: student, organizer, admin, moderator.
-
-Important routes:
-- Events page: /events
-- Student tickets: /dashboard/tickets
-- Create event: /dashboard/events/create
-- Verify ticket: /dashboard/verify-ticket
-- Problems page: /problems
-- Create problem: /dashboard/problems/create
-- Admin approval page: /dashboard/admin/events
-- AI assistant page: /dashboard/ai
+- Students browse approved events.
+- Students register for approved events.
+- Students see QR tickets at /dashboard/tickets.
+- Organizers create events at /dashboard/events/create.
+- Admins approve events at /dashboard/admin/events.
+- Organizers and admins verify tickets at /dashboard/verify-ticket.
+- Students report campus problems at /dashboard/problems/create.
+- Admins and moderators manage campus problems.
+- Notifications show registration, approval, rejection, and ticket updates.
 
 Current events from database:
 ${eventContext}
@@ -104,13 +98,11 @@ Current problems from database:
 ${problemContext}
 
 Rules:
-- Answer in a helpful, simple, student-friendly way.
-- If the user asks how to use the website, give step-by-step instructions.
-- If the user asks about current events, use the event context above.
-- If the user asks about current problems, use the problem context above.
-- Do not invent event names, ticket codes, users, registrations, or database records.
-- If information is not available, say that it is not available in the current database context.
-- Keep answers concise unless the user asks for detail.
+- Give simple, helpful answers.
+- Use current events/problems only from the context above.
+- Do not invent ticket codes, users, or registrations.
+- If data is unavailable, say it is not available.
+- Keep answer concise.
 
 User question:
 ${question}
@@ -118,30 +110,56 @@ ${question}
 };
 
 export const askCampusAI = async ({ question, user }) => {
-  const ai = getGeminiClient();
+  try {
+    console.log("AI SERVICE: started");
+    console.log("AI MODE:", process.env.AI_MODE);
+    console.log("GEMINI MODEL:", process.env.GEMINI_MODEL);
+    console.log("GEMINI KEY EXISTS:", Boolean(process.env.GEMINI_API_KEY));
 
-  const { eventContext, problemContext } = await getCampusContext();
+    const ai = getGeminiClient();
 
-  const prompt = buildPrompt({
-    question,
-    user,
-    eventContext,
-    problemContext,
-  });
+    console.log("AI SERVICE: fetching DB context");
+    const { eventContext, problemContext } = await getCampusContext();
 
-  const interaction = await ai.interactions.create({
-    model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
-    input: prompt,
-  });
+    console.log("AI SERVICE: building prompt");
+    const prompt = buildPrompt({
+      question,
+      user,
+      eventContext,
+      problemContext,
+    });
 
-  return {
-    answer:
-      interaction.output_text ||
-      "I could not generate an answer right now. Please try again.",
-    sources: [
-      "CampusConnect AI database context",
-      "CampusConnect AI workflow rules",
-      "Gemini API",
-    ],
-  };
+    console.log("AI SERVICE: calling Gemini");
+
+    const interaction = await withTimeout(
+      ai.interactions.create({
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+        input: prompt,
+      }),
+      25000
+    );
+
+    console.log("AI SERVICE: Gemini returned");
+
+    return {
+      answer:
+        interaction.output_text ||
+        "I could not generate an answer right now. Please try again.",
+      sources: [
+        "CampusConnect AI database context",
+        "CampusConnect AI workflow rules",
+        "Gemini API",
+      ],
+    };
+  } catch (error) {
+    console.error("AI SERVICE ERROR:", error);
+
+    return {
+      answer:
+        "AI service error: " +
+        (error?.message ||
+          "Gemini did not respond. Please check GEMINI_API_KEY, GEMINI_MODEL, and Render logs."),
+      sources: [],
+    };
+  }
 };

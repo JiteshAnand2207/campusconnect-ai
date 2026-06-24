@@ -9,13 +9,13 @@ const getMockAIResponse = (question, user) => {
 
 You asked: "${question}"
 
-I am currently running in mock mode, so the AI route, authentication, frontend connection, and dashboard flow are working.
+I am currently running in mock mode.
 
 Current user:
 Name: ${user?.name}
 Role: ${user?.role}
 
-To use real AI, set AI_MODE=gemini and add GEMINI_API_KEY.`,
+To use Gemini, set AI_MODE=gemini and add GEMINI_API_KEY + GEMINI_MODEL.`,
     sources: [],
   };
 };
@@ -35,15 +35,12 @@ export const askAI = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, mockResult, "Mock AI response generated"));
   }
 
-  if (!process.env.GEMINI_API_KEY || !process.env.GEMINI_MODEL) {
-    throw new ApiError(
-      500,
-      "AI service is not configured. Please add GEMINI_API_KEY and GEMINI_MODEL."
-    );
+  if (!process.env.GEMINI_API_KEY) {
+    throw new ApiError(500, "GEMINI_API_KEY is missing");
   }
 
   const result = await askCampusAI({
-    question,
+    question: question.trim(),
     user: req.user,
   });
 
